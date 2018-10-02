@@ -1,5 +1,5 @@
 # SafeCoder
-SafeCoder支持大文件的DES加密
+SafeCoder支持大文件的AES加密
 
 ### UI界面
 ![H](https://raw.githubusercontent.com/TwilightLemon/Data/master/sc1.jpg)

@@ -28,27 +28,23 @@ namespace SafeCoder
             File.WriteAllText(dic + "\\md5",await MD5File(inFile));
             if (IsStop) return;
             File.WriteAllText(dic + "\\psw", MD5.EncryptToMD5string(MD5.EncryptToMD5string(encryptKey)));
-            byte[] rgb = { 0x14, 0x28, 0x23, 0x98, 0x86, 0xCD, 0xDF, 0xEF };
-            byte[] rgbKeys = Encoding.UTF8.GetBytes(encryptKey.Substring(0, 8));
             FileStream inFs = new FileStream(inFile, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             FileStream outFs = new FileStream(dic + "\\data", FileMode.OpenOrCreate, FileAccess.ReadWrite);
             outFs.SetLength(0);
-            byte[] byteIn = new byte[1024];
-            long readLen = 0;
-            long totalLen = inFs.Length;
-            int everylen = 0;
-            DES des = new DESCryptoServiceProvider();
-            CryptoStream encStream = new CryptoStream(outFs, des.CreateEncryptor(rgb, rgbKeys), CryptoStreamMode.Write);
-            while (readLen < totalLen)
+            int encryptSize = 100000;//16*6250
+            int blockCount = ((int)inFs.Length - 1) / encryptSize + 1;
+            for (int i = 0; i < blockCount; i++)
             {
-                if (IsStop) break;
-                everylen = await inFs.ReadAsync(byteIn, 0, 1024);
-                await encStream.WriteAsync(byteIn, 0, everylen);
-                readLen = readLen + everylen;
-                double fo = (double)readLen / (double)totalLen;
+                int size = encryptSize;
+                if (i == blockCount - 1) size = (int)(inFs.Length - i * encryptSize);
+                byte[] bArr = new byte[size];
+                await inFs.ReadAsync(bArr, 0, size);
+                byte[] result =await AESHelper.AESEncryptAsync(bArr, encryptKey);
+                await outFs.WriteAsync(result, 0, result.Length);
+                await outFs.FlushAsync();
+                double fo = (double)i / (double)blockCount;
                 EPValueChanged?.Invoke(this, new EPChangeEventArgs(fo));
             }
-            encStream.Close();
             inFs.Close();
             outFs.Close();
             if (IsStop) { new DirectoryInfo(dic).Delete(true); return; }
@@ -121,27 +117,23 @@ namespace SafeCoder
             string _psw = MD5.EncryptToMD5string(MD5.EncryptToMD5string(encryptKey));
             if (psw == _psw)
             {
-                byte[] rgb = { 0x14, 0x28, 0x23, 0x98, 0x86, 0xCD, 0xDF, 0xEF };
-                byte[] rgbKeys = Encoding.UTF8.GetBytes(encryptKey.Substring(0, 8));
                 FileStream inFs = new FileStream(filename, FileMode.OpenOrCreate, FileAccess.ReadWrite);
                 FileStream outFs = new FileStream(outFile + ".data", FileMode.OpenOrCreate, FileAccess.ReadWrite);
                 outFs.SetLength(0);
-                byte[] byteIn = new byte[1024];
-                long readLen = 0;
-                long totalLen = inFs.Length;
-                int everylen = 0;
-                DES des = new DESCryptoServiceProvider();
-                CryptoStream encStream = new CryptoStream(outFs, des.CreateDecryptor(rgb, rgbKeys), CryptoStreamMode.Write);
-                while (readLen < totalLen)
+                int decryptSize =100016;//16*(6250+1)
+                int blockCount = ((int)inFs.Length - 1) / decryptSize + 1;
+                for (int i = 0; i < blockCount; i++)
                 {
-                    if (IsStop) break;
-                    everylen = await inFs.ReadAsync(byteIn, 0, 1024);
-                    await encStream.WriteAsync(byteIn, 0, everylen);
-                    readLen = readLen + everylen;
-                    double fo = (double)readLen / (double)totalLen;
+                    int size = decryptSize;
+                    if (i == blockCount - 1) size = (int)(inFs.Length - i * decryptSize);
+                    byte[] bArr = new byte[size];
+                    await inFs.ReadAsync(bArr, 0, size);
+                    byte[] result = await AESHelper.AESDecryptAsync(bArr, encryptKey);
+                    await outFs.WriteAsync(result, 0, result.Length);
+                    await outFs.FlushAsync();
+                    double fo = (double)i / (double)blockCount;
                     EPValueChanged?.Invoke(this, new EPChangeEventArgs(fo));
                 }
-                encStream.Close();
                 inFs.Close();
                 outFs.Close();
                 if (IsStop) { new DirectoryInfo(dic).Delete(true); return 3; }
@@ -155,6 +147,51 @@ namespace SafeCoder
                 else return 1;        
             }
             else { new DirectoryInfo(dic).Delete(true); return 2; }
+        }
+    }
+
+    public class AESHelper {
+        public static async Task<byte[]> AESEncryptAsync(byte[] EncryptByte, string EncryptKey)
+        {
+            byte[] m_strEncrypt;
+            byte[] m_btIV = Convert.FromBase64String("Rkb4jvUy/ye7Cd7k89QQgQ==");
+            byte[] m_salt = Convert.FromBase64String("gsf4jvkyhye5/d7k8OrLgM==");
+            Rijndael m_AESProvider = Rijndael.Create();
+            try
+            {
+                MemoryStream m_stream = new MemoryStream();
+                PasswordDeriveBytes pdb = new PasswordDeriveBytes(EncryptKey, m_salt);
+                ICryptoTransform transform = m_AESProvider.CreateEncryptor(pdb.GetBytes(32), m_btIV);
+                CryptoStream m_csstream = new CryptoStream(m_stream, transform, CryptoStreamMode.Write);
+                await m_csstream.WriteAsync(EncryptByte, 0, EncryptByte.Length);
+                m_csstream.FlushFinalBlock();
+                m_strEncrypt = m_stream.ToArray();
+                m_stream.Close(); m_stream.Dispose();
+                m_csstream.Close(); m_csstream.Dispose();
+            }
+            finally { m_AESProvider.Clear(); }
+            return m_strEncrypt;
+        }
+        public static async Task<byte[]> AESDecryptAsync(byte[] DecryptByte, string DecryptKey)
+        {
+            byte[] m_strDecrypt;
+            byte[] m_btIV = Convert.FromBase64String("Rkb4jvUy/ye7Cd7k89QQgQ==");
+            byte[] m_salt = Convert.FromBase64String("gsf4jvkyhye5/d7k8OrLgM==");
+            Rijndael m_AESProvider = Rijndael.Create();
+            try
+            {
+                MemoryStream m_stream = new MemoryStream();
+                PasswordDeriveBytes pdb = new PasswordDeriveBytes(DecryptKey, m_salt);
+                ICryptoTransform transform = m_AESProvider.CreateDecryptor(pdb.GetBytes(32), m_btIV);
+                CryptoStream m_csstream = new CryptoStream(m_stream, transform, CryptoStreamMode.Write);
+                await m_csstream.WriteAsync(DecryptByte, 0, DecryptByte.Length);
+                m_csstream.FlushFinalBlock();
+                m_strDecrypt = m_stream.ToArray();
+                m_stream.Close(); m_stream.Dispose();
+                m_csstream.Close(); m_csstream.Dispose();
+            }
+            finally { m_AESProvider.Clear(); }
+            return m_strDecrypt;
         }
     }
 }

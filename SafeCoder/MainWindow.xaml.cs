@@ -30,7 +30,7 @@ namespace SafeCoder
                     title.Text = $"ヾ(•ω•`)o 加密中... ({(int)(e.EpsValue * 100)}%)";
                 else title.Text = $"ヾ(•ω•`)o 解密中... ({(int)(e.EpsValue * 100)}%)";
                 pro.Value = e.EpsValue;
-                if (e.EpsValue == 1)
+                if (e.EpsValue >= 0.9)
                 { tbf.Text = "完成啦 o((>ω< ))o"; title.Text = "写入文件中  (/≧▽≦)/"; }
             }
         }
@@ -84,7 +84,7 @@ namespace SafeCoder
             EnorDe = 1;
             title.Text = "序列化文件中...ヾ(≧▽≦*)o";
             if (path != "")
-                await cs.EncryptAsync(path, vpath, MD5.EncryptToMD5string(psw.Password));
+            { await cs.EncryptAsync(path, vpath, MD5.EncryptToMD5string(psw.Password)); pro.Value = 1; }
             else tbf.Text = "请选择加密文件 (￣▽￣)\"";
             StartPageEx();
         }
@@ -100,7 +100,8 @@ namespace SafeCoder
                 int result =await cs.DecryptAsync(path, vpath, MD5.EncryptToMD5string(psw.Password));
                 if (result == 1)
                     tbf.Text = "文件损坏惹 (＃°Д°)";
-                if (result==2) tbf.Text = "密码错误哦 (＃°Д°)";
+                else if (result == 2) tbf.Text = "密码错误哦 (＃°Д°)";
+                else { tbf.Text = "完成啦 o((>ω< ))o"; pro.Value = 1; }
                 StartPageEx();
             }
             else tbf.Text = "请选择解密文件  (￣▽￣)\"";
