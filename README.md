@@ -15,8 +15,5 @@ win7~win10 .net 4.5框架
 本应用由 [Twilight./Lemon(https://lemonapp.tk)](https://lemonapp.tk) 开发，您可以随意修改、使用、转载。使用或转载时请保留原网址和版权信息
 使用请遵守GPL开源协议
 
-#### 歌曲
-本应用中的歌曲和API来自QQ音乐(y.qq.com),请支持正版音乐！
-
 #### 下载
  自己用vs2017编译吧 巴拉巴拉d=====(￣▽￣*)b
