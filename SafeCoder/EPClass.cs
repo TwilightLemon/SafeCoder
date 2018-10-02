@@ -54,13 +54,10 @@ namespace SafeCoder
             if (IsStop) { new DirectoryInfo(dic).Delete(true); return; }
             if (File.Exists(outFile + ".sc"))
                 File.Delete(outFile + ".sc");
-            var t = new Task(new Action(delegate
-              {
-                  ZipFile.CreateFromDirectory(dic, outFile + ".sc");
-                  new DirectoryInfo(dic).Delete(true);
-              }));
-            t.Start();
-            t.Wait();
+            await Task.Run(() => {
+                ZipFile.CreateFromDirectory(dic, outFile + ".sc");
+                new DirectoryInfo(dic).Delete(true);
+            });
         }
         public async static Task<string> MD5File(string filePath)
         {

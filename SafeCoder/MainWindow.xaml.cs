@@ -31,7 +31,7 @@ namespace SafeCoder
                 else title.Text = $"ヾ(•ω•`)o 解密中... ({(int)(e.EpsValue * 100)}%)";
                 pro.Value = e.EpsValue;
                 if (e.EpsValue == 1)
-                { tbf.Text = "完成啦 o((>ω< ))o"; title.Text = "SafeCoder"; }
+                { tbf.Text = "完成啦 o((>ω< ))o"; title.Text = "写入文件中  (/≧▽≦)/"; }
             }
         }
 
@@ -82,7 +82,7 @@ namespace SafeCoder
             EPClass.IsStop = false;
             enPageEx();
             EnorDe = 1;
-            tbf.Text = "序列化文件中...ヾ(≧▽≦*)o";
+            title.Text = "序列化文件中...ヾ(≧▽≦*)o";
             if (path != "")
                 await cs.EncryptAsync(path, vpath, MD5.EncryptToMD5string(psw.Password));
             else tbf.Text = "请选择加密文件 (￣▽￣)\"";
