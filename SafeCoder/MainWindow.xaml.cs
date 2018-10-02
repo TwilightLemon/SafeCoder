@@ -44,12 +44,14 @@ namespace SafeCoder
         string vpath = "";
         private void window_Drop(object sender, DragEventArgs e)
         {
-            path = ((System.Array)e.Data.GetData(DataFormats.FileDrop)).GetValue(0).ToString();
+            path = ((Array)e.Data.GetData(DataFormats.FileDrop)).GetValue(0).ToString();
             tbf.Text = "已选择文件:" + path;
             tbf.ToolTip = tbf.Text;
             ed= TxtFileEncoder.GetEncoding(path);
             FileInfo f = new FileInfo(path);
-            vpath = path;
+            if (path.Contains(".sc"))
+                vpath = path.Replace(".sc", "");
+            else vpath = path;
             bc.Text = "保存到:"+vpath;
             bc.ToolTip = bc.Text;
         }
@@ -68,8 +70,8 @@ namespace SafeCoder
             tbf.Text = "解密中...";
             if (path != "")
             {
-                if (!path.Contains(".sc")) path += ".sc";
-                await cs.DecryptAsync(path, vpath, MD5.EncryptToMD5string(psw.Password));
+                bool can =await cs.DecryptAsync(path, vpath, MD5.EncryptToMD5string(psw.Password));
+                if (!can) tbf.Text = "密码错误";
             }
             else tbf.Text = "请选择解密文件";
         }

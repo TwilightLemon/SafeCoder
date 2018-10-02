@@ -33,6 +33,7 @@ namespace SafeCoder
             string dic = f.DirectoryName + "\\" + filename;
             Directory.CreateDirectory(dic);
             File.WriteAllText(dic + "\\md5", MD5File(inFile));
+            File.WriteAllText(dic + "\\psw", MD5.EncryptToMD5string(MD5.EncryptToMD5string(encryptKey)));
             byte[] rgb = { 0x14, 0x28, 0x23, 0x98, 0x86, 0xCD, 0xDF, 0xEF };
             byte[] rgbKeys = Encoding.UTF8.GetBytes(encryptKey.Substring(0, 8));
             FileStream inFs = new FileStream(inFile, FileMode.OpenOrCreate, FileAccess.ReadWrite);
@@ -85,7 +86,7 @@ namespace SafeCoder
 
             return sb.ToString();
         }
-        public async Task DecryptAsync(string inFile, string outFile, string encryptKey)
+        public async Task<bool> DecryptAsync(string inFile, string outFile, string encryptKey)
         {
             FileInfo f = new FileInfo(inFile);
             string dic = f.DirectoryName + "\\" + f.Name.Substring(0, f.Name.IndexOf('.'));
@@ -93,33 +94,41 @@ namespace SafeCoder
             ZipFile.ExtractToDirectory(inFile, dic);
             string filename = dic + "\\data";
             string md5 = File.ReadAllText(dic + "\\md5");
-            byte[] rgb = { 0x14, 0x28, 0x23, 0x98, 0x86, 0xCD, 0xDF, 0xEF };
-            byte[] rgbKeys = Encoding.UTF8.GetBytes(encryptKey.Substring(0, 8));
-            FileStream inFs = new FileStream(filename, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-            FileStream outFs = new FileStream(outFile + ".data", FileMode.OpenOrCreate, FileAccess.ReadWrite);
-            outFs.SetLength(0);
-            byte[] byteIn = new byte[1024];
-            long readLen = 0;
-            long totalLen = inFs.Length;
-            int everylen = 0;
-            DES des = new DESCryptoServiceProvider();
-            CryptoStream encStream = new CryptoStream(outFs, des.CreateDecryptor(rgb, rgbKeys), CryptoStreamMode.Write);
-            while (readLen < totalLen)
+            string psw = File.ReadAllText(dic + "\\psw");
+            string _psw = MD5.EncryptToMD5string(MD5.EncryptToMD5string(encryptKey));
+            if (psw == _psw)
             {
-                everylen = await inFs.ReadAsync(byteIn, 0, 1024);
-                await encStream.WriteAsync(byteIn, 0, everylen);
-                readLen = readLen + everylen;
-                double fo = (double)readLen / (double)totalLen;
-                EPValueChanged?.Invoke(this, new EPChangeEventArgs(fo));
+                byte[] rgb = { 0x14, 0x28, 0x23, 0x98, 0x86, 0xCD, 0xDF, 0xEF };
+                byte[] rgbKeys = Encoding.UTF8.GetBytes(encryptKey.Substring(0, 8));
+                FileStream inFs = new FileStream(filename, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                FileStream outFs = new FileStream(outFile + ".data", FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                outFs.SetLength(0);
+                byte[] byteIn = new byte[1024];
+                long readLen = 0;
+                long totalLen = inFs.Length;
+                int everylen = 0;
+                DES des = new DESCryptoServiceProvider();
+                CryptoStream encStream = new CryptoStream(outFs, des.CreateDecryptor(rgb, rgbKeys), CryptoStreamMode.Write);
+                while (readLen < totalLen)
+                {
+                    everylen = await inFs.ReadAsync(byteIn, 0, 1024);
+                    await encStream.WriteAsync(byteIn, 0, everylen);
+                    readLen = readLen + everylen;
+                    double fo = (double)readLen / (double)totalLen;
+                    EPValueChanged?.Invoke(this, new EPChangeEventArgs(fo));
+                }
+                encStream.Close();
+                inFs.Close();
+                outFs.Close();
+                if (MD5File(outFile + ".data") == md5)
+                {
+                    File.Copy(outFile + ".data", outFile, true);
+                    File.Delete(outFile + ".data");
+                    new DirectoryInfo(dic).Delete(true);
+                }
+                return true;
             }
-            encStream.Close();
-            inFs.Close();
-            outFs.Close();
-            if (MD5File(outFile + ".data") == md5) {
-                File.Copy(outFile + ".data", outFile,true);
-                File.Delete(outFile + ".data");
-                new DirectoryInfo(dic).Delete(true);
-            }
+            else { new DirectoryInfo(dic).Delete(true); return false; }
         }
     }
 }
