@@ -32,6 +32,8 @@ namespace SafeCoder
             FileStream outFs = new FileStream(dic + "\\data", FileMode.OpenOrCreate, FileAccess.ReadWrite);
             outFs.SetLength(0);
             int encryptSize = 100000;//16*6250
+            if(inFs.Length>20971520)
+                encryptSize = 1000000;//16*6250
             int blockCount = ((int)inFs.Length - 1) / encryptSize + 1;
             for (int i = 0; i < blockCount; i++)
             {
@@ -121,6 +123,8 @@ namespace SafeCoder
                 FileStream outFs = new FileStream(outFile + ".data", FileMode.OpenOrCreate, FileAccess.ReadWrite);
                 outFs.SetLength(0);
                 int decryptSize =100016;//16*(6250+1)
+                if (inFs.Length > 20971520)
+                    decryptSize = 1000016;
                 int blockCount = ((int)inFs.Length - 1) / decryptSize + 1;
                 for (int i = 0; i < blockCount; i++)
                 {
@@ -153,45 +157,27 @@ namespace SafeCoder
     public class AESHelper {
         public static async Task<byte[]> AESEncryptAsync(byte[] EncryptByte, string EncryptKey)
         {
-            byte[] m_strEncrypt;
-            byte[] m_btIV = Convert.FromBase64String("Rkb4jvUy/ye7Cd7k89QQgQ==");
-            byte[] m_salt = Convert.FromBase64String("gsf4jvkyhye5/d7k8OrLgM==");
-            Rijndael m_AESProvider = Rijndael.Create();
-            try
-            {
-                MemoryStream m_stream = new MemoryStream();
-                PasswordDeriveBytes pdb = new PasswordDeriveBytes(EncryptKey, m_salt);
-                ICryptoTransform transform = m_AESProvider.CreateEncryptor(pdb.GetBytes(32), m_btIV);
-                CryptoStream m_csstream = new CryptoStream(m_stream, transform, CryptoStreamMode.Write);
-                await m_csstream.WriteAsync(EncryptByte, 0, EncryptByte.Length);
-                m_csstream.FlushFinalBlock();
-                m_strEncrypt = m_stream.ToArray();
-                m_stream.Close(); m_stream.Dispose();
-                m_csstream.Close(); m_csstream.Dispose();
-            }
-            finally { m_AESProvider.Clear(); }
-            return m_strEncrypt;
+            byte[] dt = null;
+            await Task.Run(() => {
+                dt = new RijndaelManaged{
+                    Key = Encoding.UTF8.GetBytes(EncryptKey),
+                    Mode = CipherMode.ECB,
+                    Padding = PaddingMode.PKCS7
+                }.CreateEncryptor().TransformFinalBlock(EncryptByte, 0, EncryptByte.Length);
+            });
+            return dt;
         }
+
         public static async Task<byte[]> AESDecryptAsync(byte[] DecryptByte, string DecryptKey)
         {
-            byte[] m_strDecrypt;
-            byte[] m_btIV = Convert.FromBase64String("Rkb4jvUy/ye7Cd7k89QQgQ==");
-            byte[] m_salt = Convert.FromBase64String("gsf4jvkyhye5/d7k8OrLgM==");
-            Rijndael m_AESProvider = Rijndael.Create();
-            try
-            {
-                MemoryStream m_stream = new MemoryStream();
-                PasswordDeriveBytes pdb = new PasswordDeriveBytes(DecryptKey, m_salt);
-                ICryptoTransform transform = m_AESProvider.CreateDecryptor(pdb.GetBytes(32), m_btIV);
-                CryptoStream m_csstream = new CryptoStream(m_stream, transform, CryptoStreamMode.Write);
-                await m_csstream.WriteAsync(DecryptByte, 0, DecryptByte.Length);
-                m_csstream.FlushFinalBlock();
-                m_strDecrypt = m_stream.ToArray();
-                m_stream.Close(); m_stream.Dispose();
-                m_csstream.Close(); m_csstream.Dispose();
-            }
-            finally { m_AESProvider.Clear(); }
-            return m_strDecrypt;
+            byte[] dt = null;
+            await Task.Run(() => {dt = new RijndaelManaged{
+                    Key = Encoding.UTF8.GetBytes(DecryptKey),
+                    Mode = CipherMode.ECB,
+                    Padding = PaddingMode.PKCS7
+                }.CreateDecryptor().TransformFinalBlock(DecryptByte, 0, DecryptByte.Length);
+            });
+            return dt;
         }
     }
 }
